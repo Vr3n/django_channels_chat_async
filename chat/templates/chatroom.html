@@ -2,5 +2,68 @@
 
 
 {% block content %}
-    {{ room_name }}
+
+    <div class="row d-flex justify-content-center">
+        <div class="col-6">
+            <form>
+                <div class="form-group">
+                    <label for="textArea1" class="h4 pt-5">ChatRoom: {{room_name}}</label>
+                    <textarea readonly name="textArea1" id="chat-text" cols="30" rows="10" class="form-control"></textarea>
+                </div>
+                <br>
+                <div class="form-group">
+                    <input type="text" name="send_message" id="input" class="form-control">
+
+                </div>
+                <br>
+                <input id="submit" type="button" value="Send" class="btn btn-secondary btn-lg btn-block">
+            </form>
+        </div>
+    </div>
+
+    <!-- for accessing django context in JS -->
+    {{ room_name|json_script:"room_name" }}
+    {{ user_name|json_script:"user_name" }}
+
 {% endblock content %}
+
+{% block custom_scripts %}
+
+    <script>
+
+        const roomName = JSON.parse(document.getElementById('room_name').textContent);
+        const userName = JSON.parse(document.getElementById('user_name').textContent);
+
+        const chatSocket = new WebSocket(
+            "ws://" + window.location.host + "/ws/chat/" + roomName + "/"
+        );
+
+        const displayMsg = (message, username) => {
+            document.querySelector('textarea#chat-text').innerHTML += `${username}: ${message}\n`;
+        }
+
+
+        chatSocket.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            console.log(data);
+            if (data.message && data.user) {
+                displayMsg(data.message, data.user);
+            } 
+        }
+
+        document.querySelector("form").addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const msgInputDOM = document.querySelector("#input");
+            const message = msgInputDOM.value;
+            console.log("sending message!!");
+            chatSocket.send(JSON.stringify({
+                'message': message,
+                'username': userName,
+            }));
+            msgInputDOM.value = "";
+        });
+
+    </script>
+
+{% endblock custom_scripts %}
